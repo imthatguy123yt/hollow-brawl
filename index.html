@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hollow Knight Battle Game</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #1a1a1a; font-family: sans-serif; }
+        canvas { display: block; background-color: #222; }
+        #menu { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #111; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        #menu h1 { color: white; margin-bottom: 20px; }
+        .character-select { display: flex; gap: 10px; margin-bottom: 20px; }
+        .character-button { width: 80px; height: 80px; border-radius: 10px; background-size: cover; border: 2px solid #555; cursor: pointer; }
+        .character-button.selected { border: 3px solid yellow; }
+        #startButton { padding: 15px 30px; font-size: 22px; cursor: pointer; border-radius: 10px; background-color: #444; color: white; border: none; box-shadow: 0 5px #222; }
+        #startButton:active { box-shadow: 0 2px #222; transform: translateY(3px); }
+    </style>
+</head>
+<body>
+<div id="menu">
+    <h1>Hollow Knight Battle Game</h1>
+    <div>Player 1 Select:</div>
+    <div id="p1Select" class="character-select"></div>
+    <div>Player 2 Select:</div>
+    <div id="p2Select" class="character-select"></div>
+    <button id="startButton">Start Battle</button>
+</div>
+<canvas id="gameCanvas"></canvas>
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+const GRAVITY = 0.8;
+
+class Character {
+    constructor(name, x, y, color) {
+        this.name = name;
+        this.x = x;
+        this.y = y;
+        this.width = 40;
+        this.height = 60;
+        this.color = color;
+        this.vx = 0;
+        this.vy = 0;
+        this.speed = 5;
+        this.jumping = false;
+        this.health = 100;
+        this.hitsLanded = 0;
+        this.canSpecial = false;
+        this.activeAttack = null;
+        this.facing = 1;
+    }
+
+    draw() {
+        ctx.fillStyle = this.color;
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+        ctx.beginPath();
+        ctx.arc(this.x + this.width/2, this.y - 10, 10, 0, Math.PI*2);
+        ctx.fill();
+        ctx.fillStyle = 'red';
+        ctx.fillRect(this.x, this.y - 20, this.width * (this.health/100), 5);
+        if(this.activeAttack) this.activeAttack.draw();
+    }
+}
+
+class Slash { /* ... existing Slash code ... */ }
+class Projectile { /* ... existing Projectile code ... */ }
+
+const charactersData = [
+    {name:'Knight', color:'white', img:'knight.png'},
+    {name:'Hornet', color:'pink', img:'hornet.png'},
+    {name:'Dung Defender', color:'green', img:'dung_defender.png'},
+    {name:'False Knight', color:'gray', img:'false_knight.png'},
+    {name:'Quirl', color:'orange', img:'quirl.png'},
+    {name:'Traitor Lord', color:'purple', img:'traitor_lord.png'}
+];
+
+let player1, player2;
+let projectiles = [];
+
+function createCharacterButtons(containerId, playerNumber){
+    const container = document.getElementById(containerId);
+    charactersData.forEach(c => {
+        const btn = document.createElement('button');
+        btn.classList.add('character-button');
+        btn.style.backgroundImage = `url('${c.img}')`;
+        btn.addEventListener('click', ()=>{
+            document.querySelectorAll(`#${containerId} .character-button`).forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            if(playerNumber === 1) player1 = new Character(c.name, 100, canvas.height-100, c.color);
+            else player2 = new Character(c.name, canvas.width-150, canvas.height-100, c.color);
+        });
+        container.appendChild(btn);
+    });
+}
+
+createCharacterButtons('p1Select', 1);
+createCharacterButtons('p2Select', 2);
+
+// Fix the Start Battle button
+const startButton = document.getElementById('startButton');
+startButton.addEventListener('click', () => {
+    if(player1 && player2){
+        document.getElementById('menu').style.display = 'none';
+        gameLoop();
+    } else {
+        alert('Both players must select a character!');
+    }
+});
+
+// Placeholder for gameLoop function
+function gameLoop(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    // Update and draw players, attacks, and projectiles here
+    requestAnimationFrame(gameLoop);
+}
+</script>
+</body>
+</html>
