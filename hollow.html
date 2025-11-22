@@ -41,15 +41,18 @@ canvas.height = window.innerHeight;
 const GRAVITY = 0.8;
 
 class Character {
-    constructor(name, x, y, color, attackKey, specialKey) {
+    constructor(name, x, y, color, attackKey, specialKey, imgSrc) {
         this.name = name;
         this.x = x; this.y = y; this.width = 40; this.height = 60; this.color = color;
         this.vx = 0; this.vy = 0; this.speed = 5; this.jumping = false; this.health = 100;
         this.hitsLanded = 0; this.canSpecial = false; this.activeAttack = null; this.facing = 1;
         this.attackKey = attackKey; this.specialKey = specialKey;
+        this.img = new Image(); this.img.src = imgSrc; this.imgLoaded = false;
+        this.img.onload = () => { this.imgLoaded = true; };
     }
     draw() {
-        ctx.fillStyle = this.color; ctx.fillRect(this.x,this.y,this.width,this.height);
+        if(this.imgLoaded){ ctx.drawImage(this.img,this.x,this.y,this.width,this.height); }
+        else { ctx.fillStyle = this.color; ctx.fillRect(this.x,this.y,this.width,this.height); }
         ctx.fillStyle='red'; ctx.fillRect(this.x,this.y-20,this.width*(this.health/100),5);
         if(this.activeAttack) this.activeAttack.draw();
     }
@@ -57,9 +60,8 @@ class Character {
         this.vy += GRAVITY; this.y += this.vy; this.x += this.vx;
         if(this.x<0) this.x=0; if(this.x+this.width>canvas.width)this.x=canvas.width-this.width;
         if(this.y+this.height>canvas.height){this.y=canvas.height-this.height;this.vy=0;this.jumping=false;}
-        if(this.activeAttack){this.activeAttack.update();
-            if(this.activeAttack.finished) this.activeAttack=null;
-        }
+        if(this.vx!==0)this.facing = this.vx>0?1:-1;
+        if(this.activeAttack){this.activeAttack.update(); if(this.activeAttack.finished)this.activeAttack=null;}
     }
 }
 
@@ -67,12 +69,12 @@ class Slash { constructor(x,y,length,color,duration,facing){this.x=x;this.y=y;th
 class Projectile { constructor(x,y,vx,vy,radius,color){this.x=x;this.y=y;this.vx=vx;this.vy=vy;this.radius=radius;this.color=color;this.finished=false;} draw(){ctx.fillStyle=this.color; ctx.beginPath(); ctx.arc(this.x,this.y,this.radius,0,Math.PI*2); ctx.fill();} update(){this.x+=this.vx; this.y+=this.vy; if(this.x<0||this.x>canvas.width||this.y>canvas.height)this.finished=true;}}
 
 const charactersData=[
-  {name:'Knight',color:'white',attack:'q',special:'e'},
-  {name:'Hornet',color:'pink',attack:'q',special:'e'},
-  {name:'Dung Defender',color:'green',attack:'q',special:'e'},
-  {name:'False Knight',color:'gray',attack:'q',special:'e'},
-  {name:'Quirl',color:'orange',attack:'q',special:'e'},
-  {name:'Traitor Lord',color:'purple',attack:'q',special:'e'}
+  {name:'Knight',color:'white',attack:'q',special:'e',img:'knight.png'},
+  {name:'Hornet',color:'pink',attack:'q',special:'e',img:'hornet.png'},
+  {name:'Dung Defender',color:'green',attack:'q',special:'e',img:'dung_defender.png'},
+  {name:'False Knight',color:'gray',attack:'q',special:'e',img:'false_knight.png'},
+  {name:'Quirl',color:'orange',attack:'q',special:'e',img:'quirl.png'},
+  {name:'Traitor Lord',color:'purple',attack:'q',special:'e',img:'traitor_lord.png'}
 ];
 
 let player1,player2; let projectiles=[]; let selectedMap='default';
@@ -84,8 +86,8 @@ function createCharacterButtons(containerId,playerNumber){
         btn.addEventListener('click',()=>{
             document.querySelectorAll(`#${containerId} .character-button`).forEach(b=>b.classList.remove('selected'));
             btn.classList.add('selected');
-            if(playerNumber===1)player1=new Character(c.name,100,canvas.height-100,c.color,'q','e');
-            else player2=new Character(c.name,canvas.width-150,canvas.height-100,c.color,'n','m');
+            if(playerNumber===1)player1=new Character(c.name,100,canvas.height-100,c.color,'q','e',c.img);
+            else player2=new Character(c.name,canvas.width-150,canvas.height-100,c.color,'n','m',c.img);
         });
         container.appendChild(btn);
     });
@@ -106,13 +108,11 @@ document.addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true;});
 document.addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=false;});
 
 function handleControls(){
-    if(player1){
-        player1.vx=keys['a']?-player1.speed:keys['d']?player1.speed:0;
+    if(player1){player1.vx=keys['a']?-player1.speed:keys['d']?player1.speed:0;
         if(keys['w']&&!player1.jumping){player1.vy=-15;player1.jumping=true;}
         if(keys[player1.attackKey]){if(!player1.activeAttack)player1.activeAttack=new Slash(player1.x+player1.width/2,player1.y+player1.height/2,50,'yellow',15,player1.facing);}
     }
-    if(player2){
-        player2.vx=keys['arrowleft']?-player2.speed:keys['arrowright']?player2.speed:0;
+    if(player2){player2.vx=keys['arrowleft']?-player2.speed:keys['arrowright']?player2.speed:0;
         if(keys['arrowup']&&!player2.jumping){player2.vy=-15;player2.jumping=true;}
         if(keys[player2.attackKey]){if(!player2.activeAttack)player2.activeAttack=new Slash(player2.x+player2.width/2,player2.y+player2.height/2,50,'cyan',15,player2.facing);}
     }
@@ -134,16 +134,12 @@ function checkDamage(attacker, defender){
 function gameLoop(){
     ctx.clearRect(0,0,canvas.width,canvas.height);
     handleControls();
-
     if(player1){player1.update(); player1.draw();}
     if(player2){player2.update(); player2.draw();}
-
     checkDamage(player1, player2);
     checkDamage(player2, player1);
-
     projectiles.forEach(p=>{p.update();p.draw();});
     projectiles=projectiles.filter(p=>!p.finished);
-
     requestAnimationFrame(gameLoop);
 }
 
