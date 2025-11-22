@@ -41,11 +41,12 @@ canvas.height = window.innerHeight;
 const GRAVITY = 0.8;
 
 class Character {
-    constructor(name, x, y, color) {
+    constructor(name, x, y, color, attackKey, specialKey) {
         this.name = name;
         this.x = x; this.y = y; this.width = 40; this.height = 60; this.color = color;
         this.vx = 0; this.vy = 0; this.speed = 5; this.jumping = false; this.health = 100;
         this.hitsLanded = 0; this.canSpecial = false; this.activeAttack = null; this.facing = 1;
+        this.attackKey = attackKey; this.specialKey = specialKey;
     }
     draw() {
         ctx.fillStyle = this.color; ctx.fillRect(this.x,this.y,this.width,this.height);
@@ -53,17 +54,27 @@ class Character {
         if(this.activeAttack) this.activeAttack.draw();
     }
     update() {
-        this.vy+=GRAVITY; this.y+=this.vy; this.x+=this.vx;
+        this.vy += GRAVITY; this.y += this.vy; this.x += this.vx;
         if(this.x<0) this.x=0; if(this.x+this.width>canvas.width)this.x=canvas.width-this.width;
         if(this.y+this.height>canvas.height){this.y=canvas.height-this.height;this.vy=0;this.jumping=false;}
-        if(this.activeAttack){this.activeAttack.update(); if(this.activeAttack.finished)this.activeAttack=null;}
+        if(this.activeAttack){this.activeAttack.update();
+            if(this.activeAttack.finished) this.activeAttack=null;
+        }
     }
 }
 
 class Slash { constructor(x,y,length,color,duration,facing){this.x=x;this.y=y;this.length=length;this.color=color;this.duration=duration;this.frame=0;this.finished=false;this.facing=facing;} draw(){if(this.finished)return;ctx.strokeStyle=this.color;ctx.lineWidth=6;ctx.beginPath();ctx.moveTo(this.x,this.y);ctx.lineTo(this.x+this.length*this.facing,this.y);ctx.stroke();} update(){this.frame++; if(this.frame>=this.duration)this.finished=true;}}
 class Projectile { constructor(x,y,vx,vy,radius,color){this.x=x;this.y=y;this.vx=vx;this.vy=vy;this.radius=radius;this.color=color;this.finished=false;} draw(){ctx.fillStyle=this.color; ctx.beginPath(); ctx.arc(this.x,this.y,this.radius,0,Math.PI*2); ctx.fill();} update(){this.x+=this.vx; this.y+=this.vy; if(this.x<0||this.x>canvas.width||this.y>canvas.height)this.finished=true;}}
 
-const charactersData=[{name:'Knight',color:'white'},{name:'Hornet',color:'pink'},{name:'Dung Defender',color:'green'},{name:'False Knight',color:'gray'},{name:'Quirl',color:'orange'},{name:'Traitor Lord',color:'purple'}];
+const charactersData=[
+  {name:'Knight',color:'white',attack:'q',special:'e'},
+  {name:'Hornet',color:'pink',attack:'q',special:'e'},
+  {name:'Dung Defender',color:'green',attack:'q',special:'e'},
+  {name:'False Knight',color:'gray',attack:'q',special:'e'},
+  {name:'Quirl',color:'orange',attack:'q',special:'e'},
+  {name:'Traitor Lord',color:'purple',attack:'q',special:'e'}
+];
+
 let player1,player2; let projectiles=[]; let selectedMap='default';
 
 function createCharacterButtons(containerId,playerNumber){
@@ -73,17 +84,15 @@ function createCharacterButtons(containerId,playerNumber){
         btn.addEventListener('click',()=>{
             document.querySelectorAll(`#${containerId} .character-button`).forEach(b=>b.classList.remove('selected'));
             btn.classList.add('selected');
-            if(playerNumber===1)player1=new Character(c.name,100,canvas.height-100,c.color);
-            else player2=new Character(c.name,canvas.width-150,canvas.height-100,c.color);
+            if(playerNumber===1)player1=new Character(c.name,100,canvas.height-100,c.color,'q','e');
+            else player2=new Character(c.name,canvas.width-150,canvas.height-100,c.color,'n','m');
         });
         container.appendChild(btn);
     });
 }
-
 createCharacterButtons('p1Select',1);
 createCharacterButtons('p2Select',2);
 
-// Map selection
 const maps=['Forest','Ruins','Deepnest'];
 const mapSelect=document.getElementById('mapSelect');
 maps.forEach(m=>{
@@ -97,21 +106,47 @@ document.addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true;});
 document.addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=false;});
 
 function handleControls(){
-    if(player1){player1.vx=keys['a']?-player1.speed:keys['d']?player1.speed:0; if(keys['w']&&!player1.jumping){player1.vy=-15;player1.jumping=true;}}
-    if(player2){player2.vx=keys['arrowleft']?-player2.speed:keys['arrowright']?player2.speed:0; if(keys['arrowup']&&!player2.jumping){player2.vy=-15;player2.jumping=true;}}
+    if(player1){
+        player1.vx=keys['a']?-player1.speed:keys['d']?player1.speed:0;
+        if(keys['w']&&!player1.jumping){player1.vy=-15;player1.jumping=true;}
+        if(keys[player1.attackKey]){if(!player1.activeAttack)player1.activeAttack=new Slash(player1.x+player1.width/2,player1.y+player1.height/2,50,'yellow',15,player1.facing);}
+    }
+    if(player2){
+        player2.vx=keys['arrowleft']?-player2.speed:keys['arrowright']?player2.speed:0;
+        if(keys['arrowup']&&!player2.jumping){player2.vy=-15;player2.jumping=true;}
+        if(keys[player2.attackKey]){if(!player2.activeAttack)player2.activeAttack=new Slash(player2.x+player2.width/2,player2.y+player2.height/2,50,'cyan',15,player2.facing);}
+    }
+}
+
+function checkDamage(attacker, defender){
+    if(attacker.activeAttack){
+        let ax1=attacker.activeAttack.x;
+        let ax2=attacker.activeAttack.x + attacker.activeAttack.length * attacker.activeAttack.facing;
+        let ay=attacker.activeAttack.y;
+        let dx1=defender.x;
+        let dx2=defender.x + defender.width;
+        let dy1=defender.y;
+        let dy2=defender.y + defender.height;
+        if(ax2 > dx1 && ax1 < dx2 && ay > dy1 && ay < dy2){ defender.health -= 1; }
+    }
 }
 
 function gameLoop(){
     ctx.clearRect(0,0,canvas.width,canvas.height);
     handleControls();
+
     if(player1){player1.update(); player1.draw();}
     if(player2){player2.update(); player2.draw();}
-    projectiles.forEach(p=>{p.update();p.draw();if(player1&&p.x>player1.x&&p.x<player1.x+player1.width&&p.y>player1.y&&p.y<player1.y+player1.height)player1.health-=1;if(player2&&p.x>player2.x&&p.x<player2.x+player2.width&&p.y>player2.y&&p.y<player2.y+player2.height)player2.health-=1;});
+
+    checkDamage(player1, player2);
+    checkDamage(player2, player1);
+
+    projectiles.forEach(p=>{p.update();p.draw();});
     projectiles=projectiles.filter(p=>!p.finished);
+
     requestAnimationFrame(gameLoop);
 }
 
-// Button handlers
 document.getElementById('startButton').addEventListener('click',()=>{
     if(player1&&player2){document.getElementById('menu').style.display='none'; document.getElementById('mapMenu').style.display='flex';}
     else alert('Both players must select a character!');
