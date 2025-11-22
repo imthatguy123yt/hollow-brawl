@@ -1,29 +1,29 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hollow Knight Battle Game</title>
-    <style>
-        body { margin: 0; overflow: hidden; background-color: #1a1a1a; font-family: sans-serif; }
-        canvas { display: block; background-color: #222; }
-        #menu { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #111; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        #menu h1 { color: white; margin-bottom: 20px; }
-        .character-select { display: flex; gap: 10px; margin-bottom: 20px; }
-        .character-button { width: 80px; height: 80px; border-radius: 10px; background-size: cover; border: 2px solid #555; cursor: pointer; }
-        .character-button.selected { border: 3px solid yellow; }
-        #startButton { padding: 15px 30px; font-size: 22px; cursor: pointer; border-radius: 10px; background-color: #444; color: white; border: none; box-shadow: 0 5px #222; }
-        #startButton:active { box-shadow: 0 2px #222; transform: translateY(3px); }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hollow Knight Battle Game</title>
+<style>
+body { margin: 0; overflow: hidden; background-color: #1a1a1a; font-family: sans-serif; }
+canvas { display: block; background-color: #222; }
+#menu { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #111; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+#menu h1 { color: white; margin-bottom: 20px; }
+.character-select { display: flex; gap: 10px; margin-bottom: 20px; }
+.character-button { width: 80px; height: 80px; border-radius: 10px; background-color: #333; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; cursor: pointer; }
+.character-button.selected { border: 3px solid yellow; }
+#startButton { padding: 15px 30px; font-size: 22px; cursor: pointer; border-radius: 10px; background-color: #444; color: white; border: none; box-shadow: 0 5px #222; }
+#startButton:active { box-shadow: 0 2px #222; transform: translateY(3px); }
+</style>
 </head>
 <body>
 <div id="menu">
-    <h1>Hollow Knight Battle Game</h1>
-    <div>Player 1 Select:</div>
-    <div id="p1Select" class="character-select"></div>
-    <div>Player 2 Select:</div>
-    <div id="p2Select" class="character-select"></div>
-    <button id="startButton">Start Battle</button>
+<h1>Hollow Knight Battle Game</h1>
+<div>Player 1 Select:</div>
+<div id="p1Select" class="character-select"></div>
+<div>Player 2 Select:</div>
+<div id="p2Select" class="character-select"></div>
+<button id="startButton">Start Battle</button>
 </div>
 <canvas id="gameCanvas"></canvas>
 <script>
@@ -55,25 +55,63 @@ class Character {
     draw() {
         ctx.fillStyle = this.color;
         ctx.fillRect(this.x, this.y, this.width, this.height);
-        ctx.beginPath();
-        ctx.arc(this.x + this.width/2, this.y - 10, 10, 0, Math.PI*2);
-        ctx.fill();
         ctx.fillStyle = 'red';
         ctx.fillRect(this.x, this.y - 20, this.width * (this.health/100), 5);
         if(this.activeAttack) this.activeAttack.draw();
     }
+
+    update() {
+        this.vy += GRAVITY;
+        this.y += this.vy;
+        this.x += this.vx;
+        if(this.x < 0) this.x = 0;
+        if(this.x + this.width > canvas.width) this.x = canvas.width - this.width;
+        if(this.y + this.height > canvas.height) { this.y = canvas.height - this.height; this.vy = 0; this.jumping = false; }
+        if(this.activeAttack) { this.activeAttack.update(); if(this.activeAttack.finished) this.activeAttack = null; }
+    }
 }
 
-class Slash { /* ... existing Slash code ... */ }
-class Projectile { /* ... existing Projectile code ... */ }
+class Slash {
+    constructor(x, y, length, color, duration, facing) {
+        this.x = x;
+        this.y = y;
+        this.length = length;
+        this.color = color;
+        this.duration = duration;
+        this.frame = 0;
+        this.finished = false;
+        this.facing = facing;
+    }
+    draw() {
+        if(this.finished) return;
+        ctx.strokeStyle = this.color;
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.moveTo(this.x, this.y);
+        ctx.lineTo(this.x + this.length*this.facing, this.y);
+        ctx.stroke();
+    }
+    update() {
+        this.frame++;
+        if(this.frame >= this.duration) this.finished = true;
+    }
+}
+
+class Projectile {
+    constructor(x, y, vx, vy, radius, color) {
+        this.x = x; this.y = y; this.vx = vx; this.vy = vy; this.radius = radius; this.color = color; this.finished = false;
+    }
+    draw() { ctx.fillStyle = this.color; ctx.beginPath(); ctx.arc(this.x, this.y, this.radius,0,Math.PI*2); ctx.fill(); }
+    update() { this.x += this.vx; this.y += this.vy; if(this.x<0||this.x>canvas.width||this.y>canvas.height) this.finished=true; }
+}
 
 const charactersData = [
-    {name:'Knight', color:'white', img:'knight.png'},
-    {name:'Hornet', color:'pink', img:'hornet.png'},
-    {name:'Dung Defender', color:'green', img:'dung_defender.png'},
-    {name:'False Knight', color:'gray', img:'false_knight.png'},
-    {name:'Quirl', color:'orange', img:'quirl.png'},
-    {name:'Traitor Lord', color:'purple', img:'traitor_lord.png'}
+    {name:'Knight', color:'white'},
+    {name:'Hornet', color:'pink'},
+    {name:'Dung Defender', color:'green'},
+    {name:'False Knight', color:'gray'},
+    {name:'Quirl', color:'orange'},
+    {name:'Traitor Lord', color:'purple'}
 ];
 
 let player1, player2;
@@ -84,11 +122,11 @@ function createCharacterButtons(containerId, playerNumber){
     charactersData.forEach(c => {
         const btn = document.createElement('button');
         btn.classList.add('character-button');
-        btn.style.backgroundImage = `url('${c.img}')`;
+        btn.textContent = c.name;
         btn.addEventListener('click', ()=>{
             document.querySelectorAll(`#${containerId} .character-button`).forEach(b => b.classList.remove('selected'));
             btn.classList.add('selected');
-            if(playerNumber === 1) player1 = new Character(c.name, 100, canvas.height-100, c.color);
+            if(playerNumber===1) player1 = new Character(c.name, 100, canvas.height-100, c.color);
             else player2 = new Character(c.name, canvas.width-150, canvas.height-100, c.color);
         });
         container.appendChild(btn);
@@ -98,23 +136,64 @@ function createCharacterButtons(containerId, playerNumber){
 createCharacterButtons('p1Select', 1);
 createCharacterButtons('p2Select', 2);
 
-// Fix the Start Battle button
-const startButton = document.getElementById('startButton');
-startButton.addEventListener('click', () => {
-    if(player1 && player2){
-        document.getElementById('menu').style.display = 'none';
-        gameLoop();
-    } else {
-        alert('Both players must select a character!');
-    }
-});
+const keys = {};
+document.addEventListener('keydown', e=>{ keys[e.key.toLowerCase()]=true; });
+document.addEventListener('keyup', e=>{ keys[e.key.toLowerCase()]=false; });
 
-// Placeholder for gameLoop function
+function handleControls(){
+    if(player1){
+        player1.vx = keys['a']?-player1.speed: keys['d']?player1.speed:0;
+        if(keys['w'] && !player1.jumping){ player1.vy=-15; player1.jumping=true; }
+    }
+    if(player2){
+        player2.vx = keys['arrowleft']?-player2.speed: keys['arrowright']?player2.speed:0;
+        if(keys['arrowup'] && !player2.jumping){ player2.vy=-15; player2.jumping=true; }
+    }
+}
+
+function triggerAttack(attacker, defender){
+    if(!attacker || !defender) return;
+    if(attacker.name==='Dung Defender') projectiles.push(new Projectile(attacker.x+attacker.width/2, attacker.y+attacker.height/2, attacker.facing*8, 0, 12, 'brown'));
+    else if(attacker.name==='Quirl') projectiles.push(new Projectile(attacker.x+attacker.width/2, attacker.y+attacker.height/2, attacker.facing*10, 0, 8, 'orange'));
+    else attacker.activeAttack = new Slash(attacker.x+attacker.width/2, attacker.y+attacker.height/2, 50, 'yellow', 15, attacker.facing);
+}
+
+function checkCollision(attacker, defender){
+    if(attacker.activeAttack){
+        if(attacker.activeAttack.x + (attacker.activeAttack.length*attacker.activeAttack.facing) > defender.x && attacker.activeAttack.x < defender.x + defender.width && attacker.activeAttack.y > defender.y && attacker.activeAttack.y < defender.y + defender.height){
+            defender.health -= 1;
+        }
+    }
+}
+
+function drawSpecialProgress(){
+    if(player1){ ctx.beginPath(); ctx.strokeStyle='cyan'; ctx.lineWidth=5; ctx.arc(50,50,30,-Math.PI/2, -Math.PI/2 + 2*Math.PI*(player1.hitsLanded/5)); ctx.stroke(); }
+    if(player2){ ctx.beginPath(); ctx.strokeStyle='magenta'; ctx.lineWidth=5; ctx.arc(canvas.width-50,50,30,-Math.PI/2, -Math.PI/2 + 2*Math.PI*(player2.hitsLanded/5)); ctx.stroke(); }
+}
+
 function gameLoop(){
     ctx.clearRect(0,0,canvas.width,canvas.height);
-    // Update and draw players, attacks, and projectiles here
+    handleControls();
+
+    if(player1){ player1.update(); player1.draw(); }
+    if(player2){ player2.update(); player2.draw(); }
+
+    projectiles.forEach(p=>{ p.update(); p.draw();
+        if(player1 && p.x>player1.x && p.x<player1.x+player1.width && p.y>player1.y && p.y<player1.y+player1.height) player1.health-=1;
+        if(player2 && p.x>player2.x && p.x<player2.x+player2.width && p.y>player2.y && p.y<player2.y+player2.height) player2.health-=1;
+    });
+    projectiles = projectiles.filter(p=>!p.finished);
+
+    drawSpecialProgress();
+
     requestAnimationFrame(gameLoop);
 }
+
+const startButton = document.getElementById('startButton');
+startButton.addEventListener('click', ()=>{
+    if(player1 && player2){ document.getElementById('menu').style.display='none'; gameLoop(); }
+    else alert('Both players must select a character!');
+});
 </script>
 </body>
 </html>
