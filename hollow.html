@@ -7,19 +7,25 @@
 <style>
 body { margin: 0; overflow: hidden; background-color: #1a1a1a; font-family: sans-serif; }
 canvas { display: block; background-color: #222; }
-#menu, #mapMenu { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #111; }
-#menu h1, #mapMenu h1 { color: white; margin-bottom: 20px; }
+#mainMenu, #characterMenu, #mapMenu { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #111; }
+#mainMenu h1, #characterMenu h1, #mapMenu h1 { color: white; margin-bottom: 20px; }
 .character-select, .map-select { display: flex; gap: 10px; margin-bottom: 20px; }
-.character-button, .map-button { width: 80px; height: 80px; border-radius: 10px; background-color: #333; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; cursor: pointer; transition: 0.2s; }
-.character-button:hover, .map-button:hover { transform: scale(1.1); background-color: #555; }
+.character-button, .map-button, .menu-button { width: 80px; height: 80px; border-radius: 10px; background-color: #333; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; cursor: pointer; transition: 0.2s; }
+.character-button:hover, .map-button:hover, .menu-button:hover { transform: scale(1.1); background-color: #555; }
 .character-button.selected, .map-button.selected { border: 3px solid yellow; }
 #startButton, #selectMapButton { padding: 15px 30px; font-size: 22px; cursor: pointer; border-radius: 10px; background-color: #444; color: white; border: none; box-shadow: 0 5px #222; transition: 0.1s; }
 #startButton:active, #selectMapButton:active { box-shadow: 0 2px #222; transform: translateY(3px); }
 </style>
 </head>
 <body>
-<div id="menu">
-<h1>Hollow Knight Battle Game</h1>
+
+<div id="mainMenu">
+<h1>Hollow Knight Battle</h1>
+<div style="display:flex; gap:50px;"><button class="menu-button" id="battleButton">Battle</button><button class="menu-button" id="forumsButton">Forums</button></div>
+</div>
+
+<div id="characterMenu" style="display:none;">
+<h1>Select Your Characters</h1>
 <div>Player 1 Select:</div>
 <div id="p1Select" class="character-select"></div>
 <div>Player 2 Select:</div>
@@ -46,7 +52,7 @@ class Character {
         this.name = name;
         this.x = x; this.y = y; this.width = 50; this.height = 70; this.color = color;
         this.vx = 0; this.vy = 0; this.speed = 6; this.jumping = false; this.health = 100;
-        this.hitsLanded = 0; this.canSpecial = false; this.activeAttack = null; this.facing = 1;
+        this.activeAttack = null; this.facing = 1;
         this.attackKey = attackKey; this.specialKey = specialKey;
         this.specialProgress = 0; this.specialMax = 100;
         this.img = new Image(); this.img.src = imgSrc; this.imgLoaded = false;
@@ -55,9 +61,7 @@ class Character {
     draw() {
         if(this.imgLoaded){ ctx.drawImage(this.img,this.x,this.y,this.width,this.height); }
         else { ctx.fillStyle = this.color; ctx.fillRect(this.x,this.y,this.width,this.height); }
-        // health bar
         ctx.fillStyle='red'; ctx.fillRect(this.x,this.y-20,this.width*(this.health/100),5);
-        // special meter
         ctx.strokeStyle='yellow'; ctx.lineWidth=4;
         ctx.beginPath(); ctx.arc(this.x+this.width/2,this.y-40,15,0,2*Math.PI); ctx.stroke();
         ctx.beginPath(); ctx.arc(this.x+this.width/2,this.y-40,15,-Math.PI/2,-Math.PI/2+2*Math.PI*(this.specialProgress/this.specialMax)); ctx.stroke();
@@ -72,8 +76,7 @@ class Character {
     }
 }
 
-class Slash { constructor(x,y,length,color,duration,facing,owner){this.x=x;this.y=y;this.length=length;this.color=color;this.duration=duration;this.frame=0;this.finished=false;this.facing=facing; this.owner=owner;} draw(){if(this.finished)return;ctx.strokeStyle=this.color;ctx.lineWidth=6;ctx.beginPath();ctx.moveTo(this.x,this.y);ctx.lineTo(this.x+this.length*this.facing,this.y);ctx.stroke();} update(){this.frame++; if(this.frame>=this.duration)this.finished=true;}}
-class Projectile { constructor(x,y,vx,vy,radius,color){this.x=x;this.y=y;this.vx=vx;this.vy=vy;this.radius=radius;this.color=color;this.finished=false;} draw(){ctx.fillStyle=this.color; ctx.beginPath(); ctx.arc(this.x,this.y,this.radius,0,Math.PI*2); ctx.fill();} update(){this.x+=this.vx; this.y+=this.vy; if(this.x<0||this.x>canvas.width||this.y>canvas.height)this.finished=true;}}
+class Slash { constructor(x,y,length,color,duration,facing,owner){this.x=x;this.y=y;this.length=length;this.color=color;this.duration=duration;this.frame=0;this.finished=false;this.facing=facing; this.owner=owner;} draw(){if(this.finished)return;ctx.strokeStyle=this.color;ctx.lineWidth=6;ctx.beginPath();ctx.moveTo(this.x,this.y);ctx.lineTo(this.x+this.length*this.facing,this.y);ctx.stroke();} update(){this.frame++; if(this.frame>=this.duration)this.finished=true;} }
 
 const charactersData=[
   {name:'Knight',color:'white',attack:'q',special:'e',img:'knight.png'},
@@ -99,6 +102,7 @@ function createCharacterButtons(containerId,playerNumber){
         container.appendChild(btn);
     });
 }
+
 createCharacterButtons('p1Select',1);
 createCharacterButtons('p2Select',2);
 
@@ -115,13 +119,17 @@ document.addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true;});
 document.addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=false;});
 
 function handleControls(){
-    if(player1){player1.vx=keys['a']?-player1.speed:keys['d']?player1.speed:0;
-        if(keys['w']&&!player1.jumping){player1.vy=-15;player1.jumping=true;}
-        if(keys[player1.attackKey] && !player1.activeAttack){player1.activeAttack=new Slash(player1.x+player1.width/2,player1.y+player1.height/2,50,'yellow',15,player1.facing,player1); player1.specialProgress=Math.min(player1.specialProgress+10, player1.specialMax);}
+    if(player1){
+        player1.vx = keys['a']?-player1.speed:keys['d']?player1.speed:0;
+        if(keys['w']&&!player1.jumping){player1.vy=-15; player1.jumping=true;}
+        if(keys[player1.attackKey] && !player1.activeAttack){player1.activeAttack=new Slash(player1.x+player1.width/2,player1.y+player1.height/2,50,'yellow',15,player1.facing,player1); player1.specialProgress=Math.min(player1.specialProgress+10,player1.specialMax);}
+        if(keys[player1.specialKey] && player1.specialProgress>=player1.specialMax){player1.specialProgress=0; /* trigger special */}
     }
-    if(player2){player2.vx=keys['arrowleft']?-player2.speed:keys['arrowright']?player2.speed:0;
+    if(player2){
+        player2.vx = keys['arrowleft']?-player2.speed:keys['arrowright']?player2.speed:0;
         if(keys['arrowup']&&!player2.jumping){player2.vy=-15;player2.jumping=true;}
-        if(keys[player2.attackKey] && !player2.activeAttack){player2.activeAttack=new Slash(player2.x+player2.width/2,player2.y+player2.height/2,50,'cyan',15,player2.facing,player2); player2.specialProgress=Math.min(player2.specialProgress+10, player2.specialMax);}
+        if(keys[player2.attackKey] && !player2.activeAttack){player2.activeAttack=new Slash(player2.x+player2.width/2,player2.y+player2.height/2,50,'cyan',15,player2.facing,player2); player2.specialProgress=Math.min(player2.specialProgress+10,player2.specialMax);}
+        if(keys[player2.specialKey] && player2.specialProgress>=player2.specialMax){player2.specialProgress=0; /* trigger special */}
     }
 }
 
@@ -146,14 +154,10 @@ function gameLoop(){
     requestAnimationFrame(gameLoop);
 }
 
-document.getElementById('startButton').addEventListener('click',()=>{
-    if(player1&&player2){document.getElementById('menu').style.display='none'; document.getElementById('mapMenu').style.display='flex';}
-    else alert('Both players must select a character!');
-});
-document.getElementById('selectMapButton').addEventListener('click',()=>{
-    if(selectedMap){ document.getElementById('mapMenu').style.display='none'; gameLoop(); }
-    else alert('Select a map!');
-});
+document.getElementById('battleButton').addEventListener('click',()=>{document.getElementById('mainMenu').style.display='none'; document.getElementById('characterMenu').style.display='flex';});
+document.getElementById('forumsButton').addEventListener('click',()=>{window.open('https://sites.google.com/tiftschools.com/hollow-fight/forums');});
+document.getElementById('startButton').addEventListener('click',()=>{if(player1&&player2){document.getElementById('characterMenu').style.display='none'; document.getElementById('mapMenu').style.display='flex';} else alert('Both players must select a character!');});
+document.getElementById('selectMapButton').addEventListener('click',()=>{if(selectedMap){ document.getElementById('mapMenu').style.display='none'; gameLoop(); } else alert('Select a map!');});
 </script>
 </body>
 </html>
