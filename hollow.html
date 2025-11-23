@@ -1,164 +1,217 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Hollow Knight Battle Game</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Hollow Knight Battle Game – Squad Strike Edition</title>
 <style>
-body { margin: 0; overflow: hidden; background-color: #1a1a1a; font-family: sans-serif; }
-canvas { display: block; background-color: #222; }
-#mainMenu, #characterMenu, #mapMenu, #teamMenu, #bottomMenu, #controlsMenu { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #111; }
-#teamMenu, #controlsMenu { display: none; }
-#bottomMenu { top: auto; bottom: 0; height: 80px; flex-direction: row; justify-content: space-between; background: #111; }
-#mainMenu h1, #characterMenu h1, #mapMenu h1, #teamMenu h1, #controlsMenu h1 { color: white; margin-bottom: 20px; }
-.character-select, .map-select, .team-select { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; justify-content: center; }
-.character-button, .map-button, .menu-button { width: 80px; height: 80px; border-radius: 10px; background-color: #333; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; cursor: pointer; transition: 0.2s; }
-.character-button:hover, .map-button:hover, .menu-button:hover { transform: scale(1.1); background-color: #555; }
-.character-button.selected, .map-button.selected { border: 3px solid yellow; }
-#startButton, #selectMapButton, #confirmTeamButton { padding: 15px 30px; font-size: 22px; cursor: pointer; border-radius: 10px; background-color: #444; color: white; border: none; box-shadow: 0 5px #222; transition: 0.1s; }
-#startButton:active, #selectMapButton:active, #confirmTeamButton:active { box-shadow: 0 2px #222; transform: translateY(3px); }
-.bottom-button { flex: 1; margin: 0; height: 100%; font-size: 24px; background-color: #444; color: white; border: none; cursor: pointer; }
-.bottom-button:hover { background-color: #666; }
+body { margin: 0; overflow: hidden; background: #1a1a1a; font-family: sans-serif; }
+canvas { display: block; background: #222; }
+.menu { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #111; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; }
+.big-button { width: 33.33%; height: 120px; background: #333; color: white; font-size: 32px; border: none; cursor: pointer; }
+#bottomMenu { position: absolute; bottom: 0; left: 0; width: 100%; display: flex; }
+.character-grid, .team-grid { display: grid; grid-template-columns: repeat(3, 120px); gap: 10px; }
+.character-btn, .team-btn { width: 120px; height: 120px; background: #333; display: flex; align-items: center; justify-content: center; color: white; cursor: pointer; border-radius: 10px; border: 3px solid transparent; font-size: 18px; }
+.character-btn.selected, .team-btn.selected { border-color: yellow; }
+.hide { display: none !important; }
 </style>
 </head>
 <body>
 
-<div id="mainMenu">
-<h1>Hollow Knight Battle</h1>
-<div style="display:flex; width: 100%; justify-content: center; gap: 50px;"><button class="menu-button" id="battleButton">Battle</button><button class="menu-button" id="forumsButton">Forums</button></div>
+<div id="mainMenu" class="menu">
+    <h1>Hollow Fight</h1>
+    <button class="big-button" id="battleButton">Battle</button>
+    <button class="big-button" onclick="window.open('https://sites.google.com/tiftschools.com/hollow-fight/forums','_blank')">Forums</button>
+    <button class="big-button" id="teamModeButton">Team Mode</button>
 </div>
 
-<div id="characterMenu" style="display:none;">
-<h1>Select Your Characters</h1>
-<div>Player 1 Select:</div>
-<div id="p1Select" class="character-select"></div>
-<div>Player 2 Select:</div>
-<div id="p2Select" class="character-select"></div>
-<button id="startButton">Next: Select Map</button>
+<div id="characterMenu" class="menu hide">
+    <h1>Select Characters (1v1)</h1>
+    <div id="p1Select" class="character-grid"></div>
+    <div id="p2Select" class="character-grid"></div>
+    <button id="confirmCharacters">Confirm</button>
 </div>
 
-<div id="mapMenu" style="display:none;">
-<h1>Select Map</h1>
-<div class="map-select" id="mapSelect"></div>
-<button id="selectMapButton">Start Battle</button>
-</div>
-
-<div id="teamMenu">
-<h1>Team Selection</h1>
-<div>Player 1 Team:</div>
-<div id="p1TeamSelect" class="team-select"></div>
-<div>Player 2 Team:</div>
-<div id="p2TeamSelect" class="team-select"></div>
-<button id="confirmTeamButton">Confirm Teams</button>
-</div>
-
-<div id="controlsMenu">
-<h1>Controls</h1>
-<p>Player 1: Move - A/D, Jump - W, Attack - Q, Special - E</p>
-<p>Player 2: Move - Arrow Keys, Jump - Up, Attack - N, Special - M</p>
-<button id="closeControlsButton">Close</button>
-</div>
-
-<div id="bottomMenu">
-<button class="bottom-button" id="controlsButton">Controls</button>
-<button class="bottom-button" id="teamButton">Team</button>
+<div id="teamMenu" class="menu hide">
+    <h1>Squad Strike – Pick up to 5 each</h1>
+    <h2>Player 1</h2>
+    <div id="p1Team" class="team-grid"></div>
+    <h2>Player 2</h2>
+    <div id="p2Team" class="team-grid"></div>
+    <button id="confirmTeams">Confirm Teams</button>
 </div>
 
 <canvas id="gameCanvas"></canvas>
+
 <script>
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
-const GRAVITY = 0.8;
 
-class Character {
-    constructor(name, x, y, color, attackKey, specialKey, imgSrc) {
-        this.name = name;
-        this.x = x; this.y = y; this.width = 50; this.height = 70; this.color = color;
-        this.vx = 0; this.vy = 0; this.speed = 6; this.jumping = false; this.health = 100;
-        this.activeAttack = null; this.facing = 1;
-        this.attackKey = attackKey; this.specialKey = specialKey;
-        this.specialProgress = 0; this.specialMax = 100;
-        this.img = new Image(); this.img.src = imgSrc; this.imgLoaded = false;
-        this.img.onload = () => { this.imgLoaded = true; };
-    }
-    draw() {
-        if(this.imgLoaded){ ctx.drawImage(this.img,this.x,this.y,this.width,this.height); }
-        else { ctx.fillStyle = this.color; ctx.fillRect(this.x,this.y,this.width,this.height); }
-        ctx.fillStyle='red'; ctx.fillRect(this.x,this.y-20,this.width*(this.health/100),5);
-        ctx.strokeStyle='yellow'; ctx.lineWidth=4;
-        ctx.beginPath(); ctx.arc(this.x+this.width/2,this.y-40,15,0,2*Math.PI); ctx.stroke();
-        ctx.beginPath(); ctx.arc(this.x+this.width/2,this.y-40,15,-Math.PI/2,-Math.PI/2+2*Math.PI*(this.specialProgress/this.specialMax)); ctx.stroke();
-        if(this.activeAttack) this.activeAttack.draw();
-    }
-    update() {
-        this.vy += GRAVITY; this.y += this.vy; this.x += this.vx;
-        if(this.x<0) this.x=0; if(this.x+this.width>canvas.width)this.x=canvas.width-this.width;
-        if(this.y+this.height>canvas.height){this.y=canvas.height-this.height;this.vy=0;this.jumping=false;}
-        if(this.vx!==0)this.facing = this.vx>0?1:-1;
-        if(this.activeAttack){this.activeAttack.update(); if(this.activeAttack.finished)this.activeAttack=null;}
-    }
-}
-
-class Slash { constructor(x,y,length,color,duration,facing,owner){this.x=x;this.y=y;this.length=length;this.color=color;this.duration=duration;this.frame=0;this.finished=false;this.facing=facing; this.owner=owner;} draw(){if(this.finished)return;ctx.strokeStyle=this.color;ctx.lineWidth=6;ctx.beginPath();ctx.moveTo(this.x,this.y);ctx.lineTo(this.x+this.length*this.facing,this.y); ctx.stroke();} update(){this.frame++; if(this.frame>=this.duration)this.finished=true;} }
-
-const charactersData=[
-  {name:'Knight',color:'white',attack:'q',special:'e',img:'knight.png'},
-  {name:'Hornet',color:'pink',attack:'q',special:'e',img:'hornet.png'},
-  {name:'Dung Defender',color:'green',attack:'q',special:'e',img:'dung_defender.png'},
-  {name:'False Knight',color:'gray',attack:'q',special:'e',img:'false_knight.png'},
-  {name:'Quirl',color:'orange',attack:'q',special:'e',img:'quirl.png'},
-  {name:'Traitor Lord',color:'purple',attack:'q',special:'e',img:'traitor_lord.png'}
+const charactersData = [
+    { name: 'Knight', color: 'white' },
+    { name: 'Hornet', color: 'pink' },
+    { name: 'Dung Defender', color: 'orange' },
+    { name: 'False Knight', color: 'gray' },
+    { name: 'Quirl', color: 'lightblue' },
+    { name: 'Traitor Lord', color: 'purple' }
 ];
 
-let player1Team = [], player2Team = [], player1, player2, player1Index=0, player2Index=0;
-let projectiles=[]; let selectedMap='default';
+// UI elements
+const mainMenu = document.getElementById('mainMenu');
+const characterMenu = document.getElementById('characterMenu');
+const teamMenu = document.getElementById('teamMenu');
 
-function createTeamButtons(containerId, playerTeam){
-    const container=document.getElementById(containerId);
-    charactersData.forEach(c=>{
-        const btn=document.createElement('button'); btn.classList.add('character-button'); btn.textContent=c.name;
-        btn.addEventListener('click',()=>{
-            if(playerTeam.length<5){
-                playerTeam.push(c);
+// Character buttons
+function createCharacterButtons(container, arr, limit) {
+    charactersData.forEach(char => {
+        const btn = document.createElement('div');
+        btn.className = 'team-btn';
+        btn.textContent = char.name;
+        btn.onclick = () => {
+            if (!arr.includes(char)) {
+                if (arr.length >= limit) return;
+                arr.push(char);
                 btn.classList.add('selected');
+            } else {
+                arr.splice(arr.indexOf(char), 1);
+                btn.classList.remove('selected');
             }
-        });
-        container.appendChild(btn);
+        };
+        document.getElementById(container).appendChild(btn);
     });
 }
 
-createTeamButtons('p1TeamSelect', player1Team);
-createTeamButtons('p2TeamSelect', player2Team);
+let player1Team = [];
+let player2Team = [];
 
-document.getElementById('teamButton').addEventListener('click', ()=>{
-    document.getElementById('teamMenu').style.display='flex';
-    document.getElementById('bottomMenu').style.display='none';
-});
+createCharacterButtons('p1Team', player1Team, 5);
+createCharacterButtons('p2Team', player2Team, 5);
 
-document.getElementById('controlsButton').addEventListener('click', ()=>{
-    document.getElementById('controlsMenu').style.display='flex';
-    document.getElementById('bottomMenu').style.display='none';
-});
+// Buttons
+const teamModeButton = document.getElementById('teamModeButton');
+const confirmTeams = document.getElementById('confirmTeams');
 
-document.getElementById('closeControlsButton').addEventListener('click', ()=>{
-    document.getElementById('controlsMenu').style.display='none';
-    document.getElementById('bottomMenu').style.display='flex';
-});
+tteamModeButton.onclick = () => {
+    mainMenu.classList.add('hide');
+    teamMenu.classList.remove('hide');
+};
 
-function startBattle(){
-    document.getElementById('bottomMenu').style.display='none';
-    if(player1Team.length>0 && player2Team.length>0){
-        player1 = new Character(player1Team[0].name, 100, canvas.height-100, player1Team[0].color,'q','e',player1Team[0].img);
-        player2 = new Character(player2Team[0].name, canvas.width-150, canvas.height-100, player2Team[0].color,'n','m',player2Team[0].img);
-        gameLoop();
+confirmTeams.onclick = () => {
+    if (player1Team.length === 0 || player2Team.length === 0) {
+        alert('Both players must pick at least 1 character!');
+        return;
+    }
+    teamMenu.classList.add('hide');
+    startTeamBattle();
+};
+
+// GAME ENGINE
+class Character {
+    constructor(data, x, controls) {
+        this.name = data.name;
+        this.color = data.color;
+        this.x = x;
+        this.y = canvas.height - 150;
+        this.width = 60;
+        this.height = 90;
+        this.vx = 0;
+        this.vy = 0;
+        this.speed = 6;
+        this.health = 100;
+        this.jumping = false;
+        this.facing = 1;
+        this.controls = controls;
+        this.attackActive = false;
+    }
+    draw() {
+        ctx.fillStyle = this.color;
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+        ctx.fillStyle = 'red';
+        ctx.fillRect(this.x, this.y - 15, this.width * (this.health / 100), 8);
+    }
+    update() {
+        this.vy += 1;
+        this.y += this.vy;
+        this.x += this.vx;
+        if (this.y + this.height > canvas.height) {
+            this.y = canvas.height - this.height;
+            this.vy = 0;
+            this.jumping = false;
+        }
     }
 }
 
-document.getElementById('confirmTeamButton').addEventListener('click', startBattle);
+let p1Index = 0;
+let p2Index = 0;
+let player1, player2;
 
-// Remaining gameLoop, controls, and damage logic stay the same...
+function spawnCharacters() {
+    player1 = new Character(player1Team[p1Index], 200, { left: 'a', right: 'd', jump: 'w', attack: 'q' });
+    player2 = new Character(player2Team[p2Index], canvas.width - 300, { left: 'arrowleft', right: 'arrowright', jump: 'arrowup', attack: 'n' });
+}
+
+function nextCharacter(player) {
+    if (player === 1) {
+        p1Index++;
+        if (p1Index >= player1Team.length) endGame(2);
+        else spawnCharacters();
+    } else {
+        p2Index++;
+        if (p2Index >= player2Team.length) endGame(1);
+        else spawnCharacters();
+    }
+}
+
+function endGame(winner) {
+    alert('Player ' + winner + ' wins!');
+    location.reload();
+}
+
+// Controls
+const keys = {};
+document.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
+document.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+
+function handleControls() {
+    // P1 movement
+    player1.vx = 0;
+    if (keys[player1.controls.left]) player1.vx = -player1.speed;
+    if (keys[player1.controls.right]) player1.vx = player1.speed;
+    if (keys[player1.controls.jump] && !player1.jumping) {
+        player1.vy = -20;
+        player1.jumping = true;
+    }
+    if (keys[player1.controls.attack]) player2.health -= 1;
+
+    // P2 movement
+    player2.vx = 0;
+    if (keys[player2.controls.left]) player2.vx = -player2.speed;
+    if (keys[player2.controls.right]) player2.vx = player2.speed;
+    if (keys[player2.controls.jump] && !player2.jumping) {
+        player2.vy = -20;
+        player2.jumping = true;
+    }
+    if (keys[player2.controls.attack]) player1.health -= 1;
+}
+
+function startTeamBattle() {
+    spawnCharacters();
+    requestAnimationFrame(gameLoop);
+}
+
+function gameLoop() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    handleControls();
+    player1.update();
+    player2.update();
+    player1.draw();
+    player2.draw();
+    if (player1.health <= 0) nextCharacter(1);
+    if (player2.health <= 0) nextCharacter(2);
+    requestAnimationFrame(gameLoop);
+}
 </script>
 </body>
 </html>
